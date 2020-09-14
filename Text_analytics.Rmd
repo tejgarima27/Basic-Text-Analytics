@@ -1,0 +1,133 @@
+---
+title: "Text Analytics Assignment-01"
+author: "Garima Gupta"
+date: "08/09/2020"
+output: html_document
+---
+
+LOADING LIBRARIES FOR PERFORMING TEXT ANALYTICS:
+```{r message=FALSE, warning=FALSE}
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+READING THE TEXT FILE "THE SONNETS" by William Shakespeare":
+```{r}
+text <- readLines(file.choose())
+head(text,10)
+
+```
+
+### LOADING DATA AS CORPUS:
+Corpus is defined as set of document which is important datatype to work with tm library.The VCorpus or called Volaile Corpus is created which will store the collection of document in the computer's RAM rather than saving to disk, just to be more memory efficient.The Source function called VectorSource() is used as the text data is in vector format which will create a Source object.
+
+The Source object is used to make VCorpus as R require to interpret each element in the vector of text as a document.
+
+```{r}
+# Make a vector source from text file
+docs <- VCorpus(VectorSource(text))
+#inspect(docs)
+
+```
+
+### CLEANING AND PRE-PROCESSING TEXT:
+
+Before analyzing the whole set of SONNETS, we need to clean text data and this is known as "pre-processing".We will make data ready to put into the bag-of-word model.The tm package provides a function tm_map() to apply cleaning functions to an entire corpus, making the cleaning steps easier.tm_map() takes two arguments, a corpus and a cleaning function.
+
+```{r warning=FALSE}
+
+# Convert all text to lower case so as the terms in capital or starting with capital letter and small case terms are considered to be same, which also reduce the size of tdm or dtm
+docs <- tm_map(docs,tolower)
+
+# Removing numbers from text as we focus to analyze only the text in sonnet
+docs <- tm_map(docs, removeNumbers)
+
+# Remove English common stopwords which ensures that no common words that adds no meaning is taken for analyzing
+docs <- tm_map(docs, removeWords, stopwords("english"))
+
+# Removing Syllogism and tautology from text data asit is very common in Sonnets 
+docs <- tm_map(docs, removeWords, c("syllogism", "tautology"))
+
+# Removing no required words as stop word
+# There are some poetic words used in the text like "thy","thou","thee" - form of you and your which are like stopwords, so removing these words which are not adding any meaning for analyzing
+docs <- tm_map(docs, removeWords, c("thy","thou","thee","will","shall","can","doth","gutenberg","yet","project","thine","hath")) 
+
+# Being the Sonnetwith lot of punctuations,we remove punctuations from text
+docs <- tm_map(docs, removePunctuation)
+
+# Eliminating extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+# Performing Lemmatization: deriving  morphologically root words by removing derivational affixes
+docs <- tm_map(docs, PlainTextDocument)
+
+# Text stemming for removing the plural form of words from Sonnet 
+# docs <- tm_map(docs, stemDocument)
+
+
+```
+
+### BUILDING TERM-DOCUMENT MATRIX FOR TEXT DATA:
+
+For analyzing the text, machine encodes the text into numerical matrix to understand and analyze, so created TDM.
+The term-document matrix is created representing terms in the row and documents in the column.TDM's is form of unigram Bag-of-words like model.
+Converting this to matrix is done for easy manipulation of text data and for visualization purpose.
+
+```{r}
+# Terms as row of matrix and documents as column of matrix is generated for text docs
+tdm <- TermDocumentMatrix(docs)
+
+# Converting tdm into matrix 
+m <- as.matrix(tdm)
+
+# Finding row sums means sum of terms counts and then sorting it in decreasing order
+v <- sort(rowSums(m),decreasing=TRUE)
+
+# Creating Dataframe using words and frequencies using count of terms as frequency and words
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+```
+
+### WORDCLOUD FOR TEXT DATA: (WITHOUT REMOVING SPARSE TERMS)
+```{r}
+#Generate the Word cloud without random order displaying words with minimum frequency of 20 to see the theme of most of sonnets indicating which word repeat most in Sonnet 
+set.seed(1234)
+#dev.off()
+wordcloud(words = d$word, freq = d$freq, min.freq = 20,
+          max.words=100, random.order=TRUE, rot.per=0.70, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+#### From this word cloud one can conclude that the word "Love" is the most repeated term in the all set of sonnets.Then the words like "mine","heart","beauty", "eye","art","make","work" are repeated words in sonnet.
+With this one can conclude that the sonnets by Shakesspeare is describing the "LOVE" with "mine" , "self","work","art", "beauty" and "heart".
+
+### WORDCLOUD FOR TEXT DATA (AFTER REMOVING SPARSE TERMS) with difference in colors as by its counts
+
+```{r} 
+tdms <- removeSparseTerms(tdm, 0.15) # Prepare the data (max 15% empty space)   
+freq1 <- rowSums(as.matrix(tdm)) # Find word frequencies 
+dark2 <- brewer.pal(6, "Dark2")   
+#dev.off()
+
+wordcloud(names(freq1), freq1, max.words=100, rot.per=0.2, colors = c( "grey80", "darkgoldenrod1","tomato"))
+
+```
+
+We can see the same words are repeating after removing sparsity by reducing the sparsity from the TDM. 
+
+### PLOTTING WORD FREQUENCIES:
+```{r message=FALSE, warning=FALSE}
+# Plotting words that appear at least 50 times   
+library(ggplot2)   
+wf <- data.frame(word=names(freq1), freq=freq1)   
+p <- ggplot(subset(wf, freq1>50), aes(word, freq))    
+p <- p + geom_bar(stat="identity")   
+p <- p + theme(axis.text.x=element_text(angle=45, hjust=1))   
+p 
+
+```
+
+The word "love" is most used in the whole Sonnet of Shakespeare showing the central idea of writing SONNET by Shakespeare. And, then followed by words like mine, eyes,beauty,sweet, time and art is described taken the concept of love in consideration.So, without reading the very famous sonnet by Shakespeare I can understand the theme of the whole sonnet just by doing simple text analytics on the SONNETS.
